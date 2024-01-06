@@ -14,12 +14,13 @@ import pandas as pd
 import tiktoken
 import openai
 import numpy as np
-from openai.embeddings_utils import distances_from_embeddings, cosine_similarity
+#from openai.embeddings_utils import distances_from_embeddings, cosine_similarity
 from ast import literal_eval
 
 # Regex pattern to match a URL
 HTTP_URL_PATTERN = r'^http[s]{0,1}://.+$'
-
+# Max number of pages to crawl
+MAX_PAGES = 5
 # Define OpenAI api_key
 # openai.api_key = '<Your API Key>'
 
@@ -134,8 +135,8 @@ def crawl(url):
             os.mkdir("processed")
 
     # While the queue is not empty, continue crawling
-    while queue:
-
+    counter = 0
+    while queue and counter < MAX_PAGES:
         # Get the next URL from the queue
         url = queue.pop()
         print(url) # for debugging and to see the progress
@@ -157,6 +158,7 @@ def crawl(url):
             
                 # Otherwise, write the text to the file in the text directory
                 f.write(text)
+                counter += 1
         except Exception as e:
             print("Unable to parse page " + url)
 
@@ -315,6 +317,8 @@ df.head()
 ################################################################################
 ### Step 12
 ################################################################################
+def cosine_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 def create_context(
     question, df, max_len=1800, size="ada"
@@ -327,8 +331,8 @@ def create_context(
     q_embeddings = openai.Embedding.create(input=question, engine='text-embedding-ada-002')['data'][0]['embedding']
 
     # Get the distances from the embeddings
-    df['distances'] = distances_from_embeddings(q_embeddings, df['embeddings'].values, distance_metric='cosine')
-
+    #df['distances'] = distances_from_embeddings(q_embeddings, df['embeddings'].values, distance_metric='cosine')
+    df['distances'] = df['embeddings'].apply(lambda x: cosine_similarity(q_embeddings, x))
 
     returns = []
     cur_len = 0
